@@ -237,15 +237,9 @@ void loop() {
     battery_pub.publish( &battery_msg );
 
     // //// sending warning:
-    // if( measurement[1] <= BATTERY_WARNING && measurement[1] > BATTERY_ERROR) {
-    //   String vol = String(measurement[1]);
-    //   String warn = String("W: low battery " + vol);
-    //   str_msg.data = String(warn).c_str();
-    //   msg_pub.publish(&str_msg);
-    // }
-    if ( measurement[1] <= BATTERY_ERROR) {
+    if ( measurement[1] <= BATTERY_WARNING) {
       String vol = String(measurement[1]);
-      String err = String("E: dangerous battery " + vol);
+      String err = String("W: dangerous battery " + vol);
       str_msg.data = String(err).c_str();
       msg_pub.publish(&str_msg);
     }

@@ -56,15 +56,9 @@
 //// Battery
 #define BATTERY_MEASURE_TIME 1000000 // 1 second
 #define BATTERY_PUB_SIZE 5
-#define BATTERY_WARNING 13.0
-#define BATTERY_ERROR 12.0
+#define BATTERY_WARNING 12.0
 #define BATTERY_CURRENT_PIN A4
 #define BATTERY_VOLTAGE_PIN A5
-
-/* ----- Debug mode. ----- */
-// Define whether debug mode should be used. This provides output on the
-// standard console but invalidates ROS communication.
-// #define DEBUG
 
 /* ---- Test mode ----- */
 // send test information through ROS rostopic 
