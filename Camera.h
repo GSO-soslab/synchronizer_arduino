@@ -35,11 +35,11 @@ public:
   bool isInitialized() const { return initialized_; };
   bool isConfigured() const { return configured_; };
 
-  void triggerMeasurement(bool utc_clock, uint32_t curr_time_base, uint32_t start_time);
+  void triggerMeasurement();
   void exposureEndPrimary();
   void exposureEndSecond();
 
-  void publish();
+  void publish(bool utc_clock, uint32_t curr_time_base, uint32_t start_time);
   void setup();      // Setup publishers and pins.
   void initialize(); // Perform initialization procedure.
   void setupPublisher();

@@ -74,12 +74,12 @@ void Camera::setup() {
 void Camera::initialize() {
   // trigger camera to get one image
   Sensor::trigger(trigger_pin_, TRIGGER_PULSE_US * 10, type_);
-  Sensor::setTimestampNow(false, 0, 0);
+  Sensor::setTimestampNow();
 
   ++image_number_;
   image_time_msg_.number = image_number_;
   Sensor::newMeasurementIsAvailable();
-  publish();
+  publish(false, 0, 0);
 }
 
 void Camera::begin() {
@@ -122,7 +122,7 @@ void Camera::initCallback(const std_msgs::Bool &msg) {
     initialized_ = true;
 }
 
-void Camera::triggerMeasurement(bool utc_clock, uint32_t curr_time_base, uint32_t start_time) {
+void Camera::triggerMeasurement() {
   // Check whether an overflow caused the interrupt.
   if (!timer_.checkOverflow()) {
     info_msg_.data = "W:Timer interrupt but not overflown.";
@@ -167,7 +167,7 @@ void Camera::triggerMeasurement(bool utc_clock, uint32_t curr_time_base, uint32_
       // The camera is currently exposing. In this case, the interrupt is
       // triggered in the middle of the exposure time, where the timestamp
       // should be taken.
-      Sensor::setTimestampNow(utc_clock, curr_time_base, start_time);
+      Sensor::setTimestampNow();
       Sensor::newMeasurementIsAvailable();
 #ifdef ADD_TRIGGERS
       trigger(ADDITIONAL_TEST_PIN, TRIGGER_PULSE_US,
@@ -192,7 +192,7 @@ void Camera::triggerMeasurement(bool utc_clock, uint32_t curr_time_base, uint32_
     // Trigger the actual pulse.
     Sensor::trigger(trigger_pin_, TRIGGER_PULSE_US, type_);
 
-    Sensor::setTimestampNow(utc_clock, curr_time_base, start_time);
+    Sensor::setTimestampNow();
     Sensor::newMeasurementIsAvailable();
 
     // Save the current time to estimate the exposure time in the pin
@@ -236,14 +236,26 @@ void Camera::exposureEndSecond() {
 
 }
 
-void Camera::publish() {
+void Camera::publish(bool utc_clock, uint32_t curr_time_base, uint32_t start_time) {
   //// make sure parimary cam is trigged, 
   //// make sure parimary cam is exposured
   //// make sure secondary cam is exposured
   if (Sensor::isNewMeasurementAvailable()) {
-    image_time_msg_.time = Sensor::getTimestamp();
-    image_time_msg_.number = image_number_;
 
+    // get time duration after UTC clock is set 
+    uint32_t time_aft_start, sec_part, msec_part;
+    time_aft_start = Sensor::getTimestamp() - start_time;
+    // get second part
+    if(utc_clock) 
+      sec_part = curr_time_base + time_aft_start / 1000000;
+    else
+      sec_part = TIME_BASE + time_aft_start / 1000000;
+    // get microssecond part
+    msec_part = time_aft_start % 1000000;   
+
+    //// publish message
+    image_time_msg_.time = ros::Time(sec_part, msec_part*1000);
+    image_time_msg_.number = image_number_;
     image_time_msg_.exposure_pri = exposure_pri_;
     image_time_msg_.exposure_sec = exposure_sec_;
 
@@ -251,7 +263,6 @@ void Camera::publish() {
 
     Sensor::newMeasurementIsNotAvailable();
   }
-
 
 }
 

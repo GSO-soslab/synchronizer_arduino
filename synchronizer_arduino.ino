@@ -26,7 +26,7 @@
 #include "helper.h"
 
 //// Instantiate the Serial2 class
-Uart Serial2(&sercom1, PIN_SERIAL2_RX, PIN_SERIAL2_TX, PAD_SERIAL2_RX, PAD_SERIAL2_TX);
+Uart Serial2(&sercom1, SERIAL2_RX_PIN, SERIAL2_TX_PIN, SERIAL2_RX_PAD, SERIAL2_TX_PAD);
 
 //// Instantiate servo object for LED, Servo control
 Servo led;
@@ -90,7 +90,7 @@ Camera cam(&nh, CAM_TOPIC, CAM_RATE, timer_cam, CAM_TYPE,
             CAM_TRIGGER_PIN, CAM_EXPOSURE_PIN, false);
 
 //// Setup timer for PPS generation 
-Pps pps(&nh, PPS_TOPIC, PPS_TRIGGER_PIN);
+Pps pps(&nh, PPS_TOPIC, PPS_TRIGGER_PIN, &Serial2);
 
 void setup() { 
   delay(1000);
@@ -165,7 +165,7 @@ void setup() {
   NVIC_EnableIRQ(TCC2_IRQn);
 
   // start serial2 to send NMEA to Jetson
-  Serial2.begin(9600);
+  Serial2.begin(115200);
   Serial2.setTimeout(10);
 
 /* -----  Sub-system Setting ----- */
@@ -189,48 +189,14 @@ void setup() {
 void loop() {
 /* ==================== Handle cam info publishing ==================== */
   //// heandle image time message publishing
-  cam.publish();
+  cam.publish(utc_clock, curr_time_base, start_time);
 
 
 /* ==================== Handle PPS time publishing ==================== */
 
-  //// heandle time message publishing, take 0.0008 second
-  if(pps.isAvailable()) {
+  //// heandle time message publishing, take 0.002 second
+  pps.publish(utc_clock, curr_time_base, start_time);
 
-    uint32_t t1 = micros();
-
-    //// get time duration after UTC clock is set 
-    uint32_t time_aft_utc, latest_sec;
-    time_aft_utc = pps.getTime() - start_time;
-    //// get second part
-    if(utc_clock) 
-      latest_sec = curr_time_base + time_aft_utc / 1000000;
-    else
-      latest_sec = TIME_BASE + time_aft_utc / 1000000;
-    //// get microssecond part
-    //micro_offset_ = time_aft_utc % 1000000;   
-
-    //// encode time format
-    pps.encodeTimeROS(latest_sec);
-    pps.encodeTimeNMEA(latest_sec);
-
-    //// send time to AHRS by ROS sensor_msgs/TimeReference msg
-    pps.publishTimeROS();
-    //// send time to Jetson by NMEA String
-    Serial2.write(pps.getGPGGA(),  sizeof(pps.getGPGGA()));
-    Serial2.write(pps.getGPGSA(),  sizeof(pps.getGPGSA()));
-    Serial2.write(pps.getGPGSV1(), sizeof(pps.getGPGSV1()));
-    Serial2.write(pps.getGPGSV2(), sizeof(pps.getGPGSV2()));
-    Serial2.write(pps.getGPRMC(),  sizeof(pps.getGPRMC()));
-    Serial2.write(pps.getGPZDA(),  sizeof(pps.getGPZDA()));
-    //// set not avaiable
-    pps.setNotAvailable();
-
-    uint32_t dt = micros() - t1;
-    String str = String(dt);
-    str_msg.data = str.c_str();
-    msg_pub.publish(&str_msg);
-  }
 
 /* ==================== Handle battery info publishing ==================== */
   //// get measurements every 1s
@@ -241,7 +207,7 @@ void loop() {
     int voltageValue = analogRead(BATTERY_VOLTAGE_PIN);
     //// store actual measurements
     battery_current[battery_size] = (currentValue * (3.3/1024.0)-0.33)*38.8788;
-    battery_voltage[battery_size] = voltageValue * (3.3/1024.0)* 11.0;
+    battery_voltage[battery_size] = voltageValue * (3.3/1024.0)* 12.0;
     battery_size ++;
     //// mark current time
     battery_time = micros();
@@ -270,52 +236,20 @@ void loop() {
     //// publish
     battery_pub.publish( &battery_msg );
 
-    //// sending warning:
-    if( measurement[1] <= BATTERY_WARNING && measurement[1] > BATTERY_ERROR) {
-      String vol = String(measurement[1]);
-      String warn = String("W: low battery " + vol);
-      str_msg.data = String(warn).c_str();
-      msg_pub.publish(&str_msg);
-    }
-    else if ( measurement[1] <= BATTERY_ERROR) {
+    // //// sending warning:
+    // if( measurement[1] <= BATTERY_WARNING && measurement[1] > BATTERY_ERROR) {
+    //   String vol = String(measurement[1]);
+    //   String warn = String("W: low battery " + vol);
+    //   str_msg.data = String(warn).c_str();
+    //   msg_pub.publish(&str_msg);
+    // }
+    if ( measurement[1] <= BATTERY_ERROR) {
       String vol = String(measurement[1]);
       String err = String("E: dangerous battery " + vol);
       str_msg.data = String(err).c_str();
       msg_pub.publish(&str_msg);
     }
   }
-
-  // if(micros() - battery_time > BATTERY_PUB_TIME) {
-  //   //// read measurement
-  //   int currentValue = analogRead(BATTERY_CURRENT_PIN);
-  //   int voltageValue = analogRead(BATTERY_VOLTAGE_PIN);
-  //   //// convert into value
-  //   float current = (currentValue * (3.3/1024.0)-0.33)*38.8788;
-  //   float voltage = voltageValue * (3.3/ 1024.0)* 11.0;
-  //   //// put into ROS msg
-  //   float measurement[2];
-  //   measurement[0] = current;
-  //   measurement[1] = voltage;
-  //   battery_msg.data = measurement;
-  //   battery_msg.data_length = 2; 
-  //   //// publish
-  //   battery_time = micros();
-  //   battery_pub.publish( &battery_msg );
-
-  //   //// sending warning:
-  //   if(voltage <= BATTERY_WARNING && voltage > BATTERY_ERROR) {
-  //     String vol = String(voltage);
-  //     String warn = String("W: low battery " + vol);
-  //     str_msg.data = String(warn).c_str();
-  //     msg_pub.publish(&str_msg);
-  //   }
-  //   else if (voltage <= BATTERY_ERROR) {
-  //     String vol = String(voltage);
-  //     String err = String("E: dangerous battery " + vol);
-  //     str_msg.data = String(err).c_str();
-  //     msg_pub.publish(&str_msg);
-  //   }
-  // }
 
 
 /* ==================== Handle Synchronizer System information publishing to onboard computer ==================== */
@@ -350,7 +284,7 @@ void TCC0_Handler() {
   // if(led_mode)
   //   led.write(led_brightness); 
 
-  cam.triggerMeasurement(utc_clock, curr_time_base, start_time);
+  cam.triggerMeasurement();
 }
 
 

@@ -36,12 +36,12 @@ public:
   //        const trigger_type type = trigger_type::NON_INVERTED); // PPS
   inline virtual void setup(){/* do nothing */};
   inline virtual void begin(){/* do nothing */};
-  inline virtual void triggerMeasurement(bool utc_clock, uint32_t curr_time_base, uint32_t start_time) = 0;
-  inline virtual void publish() = 0;
+  inline virtual void triggerMeasurement() = 0;
+  inline virtual void publish(bool utc_clock, uint32_t curr_time_base, uint32_t start_time) = 0;
   inline virtual void setupPublisher() = 0;
 
-  void setTimestampNow(bool utc_clock, uint32_t curr_time_base, uint32_t start_time);
-  ros::Time getTimestamp() const;
+  void setTimestampNow();
+  uint32_t getTimestamp() const;
   uint8_t isNewMeasurementAvailable() const;
   void newMeasurementIsAvailable();
   void newMeasurementIsNotAvailable();
@@ -61,7 +61,7 @@ protected:
 
 
 private:
-  ros::Time timestamp_;
+  uint32_t timestamp_;
   uint8_t new_measurement_available_;
 
   //------------Timer members-----------

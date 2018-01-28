@@ -75,26 +75,9 @@ Sensor::Sensor(ros::NodeHandle *nh, const String &topic, const int rate_hz,
 //   }
 // }
 
-void Sensor::setTimestampNow(bool utc_clock, uint32_t curr_time_base, uint32_t start_time) { 
-  // timestamp_ = nh_->now(); 
+void Sensor::setTimestampNow() { timestamp_ = micros(); }
 
-  // get time duration after UTC clock is set 
-  uint32_t time_aft_start, sec_part, msec_part;
-  time_aft_start = micros() - start_time;
-  
-  // get second part
-  if(utc_clock) 
-    sec_part = curr_time_base + time_aft_start / 1000000;
-  else
-    sec_part = TIME_BASE + time_aft_start / 1000000;
-  // get microssecond part
-  msec_part = time_aft_start % 1000000;   
-
-  timestamp_ = ros::Time(sec_part, msec_part*1000);
-}
-
-
-ros::Time Sensor::getTimestamp() const { return timestamp_; }
+uint32_t Sensor::getTimestamp() const { return timestamp_; }
 
 uint8_t Sensor::isNewMeasurementAvailable() const {
   return new_measurement_available_;

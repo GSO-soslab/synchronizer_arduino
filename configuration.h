@@ -18,10 +18,10 @@
 
 //  Serial2 (on Sercom1) using digital pins 12 (Rx) and 10 (Tx).
 // [check here](https://forum.arduino.cc/t/arduino-zero-softwareserial-library/328806/6)
-#define PIN_SERIAL2_RX       (34ul)               // Pin description number for PIO_SERCOM on D12
-#define PIN_SERIAL2_TX       (36ul)               // Pin description number for PIO_SERCOM on D10
-#define PAD_SERIAL2_TX       (UART_TX_PAD_2)      // SERCOM pad 2
-#define PAD_SERIAL2_RX       (SERCOM_RX_PAD_3)    // SERCOM pad 3
+#define SERIAL2_RX_PIN       (34ul)               // Pin description number for PIO_SERCOM on D12
+#define SERIAL2_TX_PIN       (36ul)               // Pin description number for PIO_SERCOM on D10
+#define SERIAL2_RX_PAD       (SERCOM_RX_PAD_3)    // SERCOM pad 3
+#define SERIAL2_TX_PAD       (UART_TX_PAD_2)      // SERCOM pad 2
 
 /* ----- sensors configuration ---- */
 

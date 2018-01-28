@@ -2,22 +2,22 @@
 
 
 
-Pps::Pps(ros::NodeHandle *nh, const String &topic, const uint8_t trigger_pin) 
-  : nh_(nh), topic_(topic+"time"), trigger_pin_(trigger_pin), available_(false),
-    publisher_(topic_.c_str(), &pps_time_msg_), micro_offset_(0)
-    // publisher_((topic_ + "time").c_str(), &pps_time_msg_)
+Pps::Pps(ros::NodeHandle *nh, const String &topic, const uint8_t trigger_pin, HardwareSerial* serial) 
+  : nh_(nh),  trigger_pin_(trigger_pin), available_(false), micro_offset_(0),
+    topic_time_(topic+"time"), publisher_time_(topic_time_.c_str(), &pps_time_msg_),
+    topic_info_(topic+"info"), publisher_info_(topic_info_.c_str(), &pps_info_msg_)
 {
-  nh_->advertise(publisher_);
+  publisher_time_ = ros::Publisher("/rov/synchronizer/pps/time", &pps_time_msg_);
+  publisher_info_ = ros::Publisher("/rov/synchronizer/pps/info", &pps_info_msg_);
+
+  nh_->advertise(publisher_time_);
+  nh_->advertise(publisher_info_);
+
+  serial2_ = serial;
 }
 
 void Pps::begin() {
   /* ----- Serial setup -----*/
-
-  // send GPS NMEA to onboard computer e.g. nvidia Jetson Xavier NX
-  // Serial2.begin(9600);  
-  // send Arduino system time to Scientific System
-  // Serial1.begin(9600);
-
 
 /** Set timer TCC2 generate a 100ms pulse every second on D13 (PA17) **/
   // Enable D13's peripheral multiplexer
@@ -52,30 +52,47 @@ void Pps::setTimeNow() {
 
     time_ = micros();
 
-
-    // // get time duration after UTC clock is set 
-    // uint32_t time_aft_start, latest_sec;
-    // time_aft_start = micros() - start_time;
-    
-    // // get second part
-    // if(utc_clock) {
-    //   latest_sec = curr_time_base + time_aft_start / 1000000;
-    // }
-    // else
-    //   latest_sec = TIME_BASE + time_aft_start / 1000000;
-
-    // // get microssecond part
-    // micro_offset_ = time_aft_start % 1000000;            
-
-    // encodeTimeROS(latest_sec);
-    // encodeTimeNMEA(latest_sec);
-
     available_ = true;
   }  
 }
 
 void Pps::setNotAvailable() {
   available_ = false;
+}
+
+void Pps::publish(bool utc_clock, uint32_t curr_time_base, uint32_t start_time) {
+
+  if(isAvailable()) {
+    uint32_t t1 = micros();
+
+    //// get time duration after UTC clock is set 
+    uint32_t time_aft_utc, latest_sec;
+    time_aft_utc = time_ - start_time;
+    //// get second part
+    if(utc_clock) 
+      latest_sec = curr_time_base + time_aft_utc / 1000000;
+    else
+      latest_sec = TIME_BASE + time_aft_utc / 1000000;
+    //// get microssecond part
+    //micro_offset_ = time_aft_utc % 1000000;   
+
+    //// encode time format
+    encodeTimeROS(latest_sec);
+    encodeTimeGPS(latest_sec);
+
+    //// publish time 
+    publishTimeROS();
+    publishTimeGPS();
+
+    //// set not avaiable
+    setNotAvailable();
+
+    uint32_t dt = micros() - t1;
+    String str = String(dt);
+    pps_info_msg_.data = str.c_str();
+    publisher_info_.publish(&pps_info_msg_);
+  }
+
 }
 
 void Pps::encodeTimeROS(uint32_t curr_time) {
@@ -96,7 +113,7 @@ void Pps::encodeTimeROS(uint32_t curr_time) {
   // $GPGSV,2,2,08,29,12,098,29,10,12,170,32,12,09,037,36,49,01,099,34*76
   // $GPRMC,205331.000,A,4129.4837,N,07125.3140,W,0.01,260.08,011121,,,D*71
   // $GPZDA,205331.000,01,11,2021,,*50
-void Pps::encodeTimeNMEA(uint32_t curr_time) {
+void Pps::encodeTimeGPS(uint32_t curr_time) {
 
 /****** convert Epoch to UTC ******/
   time_t rawtime = curr_time;
@@ -262,10 +279,23 @@ void Pps::encodeTimeNMEA(uint32_t curr_time) {
   strcat(gpzda,end);  
 }
 
+//// send time to AHRS by ROS sensor_msgs/TimeReference msg
 void Pps::publishTimeROS() {
     // send pps time delay some time(30ms) after PPS is sent
     // delay(PPS_TIME_DELAY); 
 
     // send time to AHRS by ROS Message
-    publisher_.publish( &pps_time_msg_ ); 
+    publisher_time_.publish( &pps_time_msg_ ); 
+}
+
+//// send time to Jetson by NMEA String
+void Pps::publishTimeGPS() {
+
+  serial2_->write(gpgga,  sizeof(gpgga));
+  serial2_->write(gpgsa,  sizeof(gpgsa));
+  serial2_->write(gpgsv_1, sizeof(gpgsv_1));
+  serial2_->write(gpgsv_2, sizeof(gpgsv_2));
+  serial2_->write(gprmc,  sizeof(gprmc));
+  serial2_->write(gpzda,  sizeof(gpzda));
+
 }
