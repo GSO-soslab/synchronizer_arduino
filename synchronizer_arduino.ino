@@ -40,6 +40,10 @@ volatile uint32_t start_time = 0;
 volatile uint32_t battery_time = 0;
 String science_str;
 
+float battery_voltage[BATTERY_PUB_SIZE];
+float battery_current[BATTERY_PUB_SIZE];
+int battery_size = 0;
+
 // LED setting
 volatile bool led_mode = LED_TRIGGER_MODE; // true: trigger LED when camera do exposure; false: always on
 volatile int led_brightness = LED_MIN_LIGHT;
@@ -192,6 +196,24 @@ void loop() {
 
   //// heandle time message publishing, take 0.0008 second
   if(pps.isAvailable()) {
+
+    uint32_t t1 = micros();
+
+    //// get time duration after UTC clock is set 
+    uint32_t time_aft_utc, latest_sec;
+    time_aft_utc = pps.getTime() - start_time;
+    //// get second part
+    if(utc_clock) 
+      latest_sec = curr_time_base + time_aft_utc / 1000000;
+    else
+      latest_sec = TIME_BASE + time_aft_utc / 1000000;
+    //// get microssecond part
+    //micro_offset_ = time_aft_utc % 1000000;   
+
+    //// encode time format
+    pps.encodeTimeROS(latest_sec);
+    pps.encodeTimeNMEA(latest_sec);
+
     //// send time to AHRS by ROS sensor_msgs/TimeReference msg
     pps.publishTimeROS();
     //// send time to Jetson by NMEA String
@@ -203,41 +225,97 @@ void loop() {
     Serial2.write(pps.getGPZDA(),  sizeof(pps.getGPZDA()));
     //// set not avaiable
     pps.setNotAvailable();
+
+    uint32_t dt = micros() - t1;
+    String str = String(dt);
+    str_msg.data = str.c_str();
+    msg_pub.publish(&str_msg);
   }
 
 /* ==================== Handle battery info publishing ==================== */
-
-  if(micros() - battery_time > BATTERY_PUB_TIME) {
-    //// read measurement
+  //// get measurements every 1s
+  uint32_t battery_now = micros();
+  if(battery_now - battery_time > BATTERY_MEASURE_TIME) {
+    //// read analog measurements
     int currentValue = analogRead(BATTERY_CURRENT_PIN);
     int voltageValue = analogRead(BATTERY_VOLTAGE_PIN);
-    //// convert into value
-    float current = (currentValue * (3.3/1024.0)-0.33)*38.8788;
-    float voltage = voltageValue * (3.3/ 1024.0)* 11.0;
+    //// store actual measurements
+    battery_current[battery_size] = (currentValue * (3.3/1024.0)-0.33)*38.8788;
+    battery_voltage[battery_size] = voltageValue * (3.3/1024.0)* 11.0;
+    battery_size ++;
+    //// mark current time
+    battery_time = micros();
+  }
+
+  //// publish measurements every 5s
+  if(battery_size == BATTERY_PUB_SIZE) {
+    //// get stored measurements
+    float avg_current = 0;
+    float avg_voltage = 0;
+    for(int i=0; i<BATTERY_PUB_SIZE; i++) {
+      avg_current += battery_current[i];
+      avg_voltage += battery_voltage[i];
+    }
+    //// clean the store buffer
+    battery_size = 0;
+    memset(battery_current, 0, sizeof(battery_current));
+    memset(battery_voltage, 0, sizeof(battery_voltage));
+
     //// put into ROS msg
     float measurement[2];
-    measurement[0] = current;
-    measurement[1] = voltage;
+    measurement[0] = avg_current/BATTERY_PUB_SIZE;
+    measurement[1] = avg_voltage/BATTERY_PUB_SIZE;
     battery_msg.data = measurement;
     battery_msg.data_length = 2; 
     //// publish
-    battery_time = micros();
     battery_pub.publish( &battery_msg );
 
     //// sending warning:
-    if(voltage <= BATTERY_WARNING) {
-      String vol = String(voltage);
+    if( measurement[1] <= BATTERY_WARNING && measurement[1] > BATTERY_ERROR) {
+      String vol = String(measurement[1]);
       String warn = String("W: low battery " + vol);
       str_msg.data = String(warn).c_str();
       msg_pub.publish(&str_msg);
     }
-    else if (voltage <= BATTERY_ERROR) {
-      String vol = String(voltage);
+    else if ( measurement[1] <= BATTERY_ERROR) {
+      String vol = String(measurement[1]);
       String err = String("E: dangerous battery " + vol);
       str_msg.data = String(err).c_str();
       msg_pub.publish(&str_msg);
     }
   }
+
+  // if(micros() - battery_time > BATTERY_PUB_TIME) {
+  //   //// read measurement
+  //   int currentValue = analogRead(BATTERY_CURRENT_PIN);
+  //   int voltageValue = analogRead(BATTERY_VOLTAGE_PIN);
+  //   //// convert into value
+  //   float current = (currentValue * (3.3/1024.0)-0.33)*38.8788;
+  //   float voltage = voltageValue * (3.3/ 1024.0)* 11.0;
+  //   //// put into ROS msg
+  //   float measurement[2];
+  //   measurement[0] = current;
+  //   measurement[1] = voltage;
+  //   battery_msg.data = measurement;
+  //   battery_msg.data_length = 2; 
+  //   //// publish
+  //   battery_time = micros();
+  //   battery_pub.publish( &battery_msg );
+
+  //   //// sending warning:
+  //   if(voltage <= BATTERY_WARNING && voltage > BATTERY_ERROR) {
+  //     String vol = String(voltage);
+  //     String warn = String("W: low battery " + vol);
+  //     str_msg.data = String(warn).c_str();
+  //     msg_pub.publish(&str_msg);
+  //   }
+  //   else if (voltage <= BATTERY_ERROR) {
+  //     String vol = String(voltage);
+  //     String err = String("E: dangerous battery " + vol);
+  //     str_msg.data = String(err).c_str();
+  //     msg_pub.publish(&str_msg);
+  //   }
+  // }
 
 
 /* ==================== Handle Synchronizer System information publishing to onboard computer ==================== */
@@ -263,7 +341,7 @@ void SERCOM1_Handler()
 }
 
 void TCC2_Handler() {
-  pps.setTimeNow(utc_clock, curr_time_base, start_time);
+  pps.setTimeNow();
   // offset = pps.getOffset();
 }
 

@@ -28,10 +28,12 @@
 // arduino system time beginning
 #define TIME_BASE 1621258639
 
+//// PPS
 #define PPS_TOPIC "/rov/synchronizer/pps/"
 #define PPS_TRIGGER_PIN 13
 #define PPS_TIME_DELAY 10 // send pps time after this delay
 
+//// Cameras
 #define CAM_TOPIC "/rov/synchronizer/cam/"
 #define CAM_RATE 20 
 #define CAM_TYPE trigger_type::NON_INVERTED
@@ -39,17 +41,21 @@
 #define CAM_EXPOSURE_PIN 5
 #define CAM_SEC_EXPOSURE_PIN 8
 
+//// Servo
 #define SERVO_TOPIC "/rov/utilities/servo"
 #define SERVO_TRIGGER_PIN 3
 #define SERVO_UP_POS 30
 #define SERVO_FORWARD_POS 64
 
+//// LED
 #define LED_TOPIC "/rov/utilities/led"
 #define LED_TRIGGER_PIN 4
 #define LED_MIN_LIGHT 40        // this value close LED
 #define LED_TRIGGER_MODE false  
 
-#define BATTERY_PUB_TIME 5000000 // 5 second
+//// Battery
+#define BATTERY_MEASURE_TIME 1000000 // 1 second
+#define BATTERY_PUB_SIZE 5
 #define BATTERY_WARNING 13.0
 #define BATTERY_ERROR 12.0
 #define BATTERY_CURRENT_PIN A4

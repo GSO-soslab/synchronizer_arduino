@@ -45,27 +45,30 @@ void Pps::begin() {
   while (TCC2->SYNCBUSY.bit.ENABLE);             // Wait for synchronization  
 }
 
-void Pps::setTimeNow(bool utc_clock, uint32_t curr_time_base, uint32_t start_time) {
+void Pps::setTimeNow() {
   if (TCC2->INTFLAG.bit.OVF && TCC2->INTENSET.bit.OVF)      // Optionally check for overflow (OVF) interrupt      
   {   
     TCC2->INTFLAG.bit.OVF = 1;                              // Clear the overflow (OVF) interrupt flag
 
-    // get time duration after UTC clock is set 
-    uint32_t time_aft_start, latest_sec;
-    time_aft_start = micros() - start_time;
+    time_ = micros();
+
+
+    // // get time duration after UTC clock is set 
+    // uint32_t time_aft_start, latest_sec;
+    // time_aft_start = micros() - start_time;
     
-    // get second part
-    if(utc_clock) {
-      latest_sec = curr_time_base + time_aft_start / 1000000;
-    }
-    else
-      latest_sec = TIME_BASE + time_aft_start / 1000000;
+    // // get second part
+    // if(utc_clock) {
+    //   latest_sec = curr_time_base + time_aft_start / 1000000;
+    // }
+    // else
+    //   latest_sec = TIME_BASE + time_aft_start / 1000000;
 
-    // get microssecond part
-    micro_offset_ = time_aft_start % 1000000;            
+    // // get microssecond part
+    // micro_offset_ = time_aft_start % 1000000;            
 
-    encodeTimeROS(latest_sec);
-    encodeTimeNMEA(latest_sec);
+    // encodeTimeROS(latest_sec);
+    // encodeTimeNMEA(latest_sec);
 
     available_ = true;
   }  

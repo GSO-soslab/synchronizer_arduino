@@ -14,15 +14,21 @@ public:
 
   void begin();
 
-  void setTimeNow(bool utc_clock, uint32_t curr_time_base, uint32_t start_time);
+  void setTimeNow();
 
   void setNotAvailable();
   
   bool isAvailable() { return available_; };
 
+  void encodeTimeNMEA(uint32_t curr_time);
+
+  void encodeTimeROS(uint32_t curr_time);
+
   void publishTimeROS();
 
   uint32_t getOffset() { return micro_offset_; };
+
+  uint32_t getTime() { return time_; };
 
   char * getGPGGA() { return gpgga; };
   char * getGPGSA() { return gpgsa; };
@@ -33,14 +39,11 @@ public:
 
 private:
 
-  void encodeTimeNMEA(uint32_t curr_time);
-
-  void encodeTimeROS(uint32_t curr_time);
-
   // hardware pin in arduino to generate pps
   const uint8_t trigger_pin_;
   String topic_;
   uint32_t micro_offset_;
+  uint32_t time_;
   // ROS
   ros::NodeHandle *nh_;
   ros::Publisher publisher_;
