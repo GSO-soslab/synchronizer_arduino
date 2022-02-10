@@ -42,13 +42,13 @@
 #define CAM_SEC_EXPOSURE_PIN 8
 
 //// Servo
-#define SERVO_TOPIC "/rov/utilities/servo"
+#define SERVO_TOPIC "/rov/synchronizer/servo/"
 #define SERVO_TRIGGER_PIN 3
 #define SERVO_UP_POS 30
 #define SERVO_FORWARD_POS 64
 
 //// LED
-#define LED_TOPIC "/rov/utilities/led"
+#define LED_TOPIC "/rov/synchronizer/led/"
 #define LED_TRIGGER_PIN 4
 #define LED_MIN_LIGHT 40        // this value close LED
 #define LED_TRIGGER_MODE false  
@@ -59,6 +59,9 @@
 #define BATTERY_WARNING 12.0
 #define BATTERY_CURRENT_PIN A4
 #define BATTERY_VOLTAGE_PIN A5
+
+//// Science system
+#define SCIENCE_TOPIC "/rov/synchronizer/science/"
 
 /* ---- Test mode ----- */
 // send test information through ROS rostopic 

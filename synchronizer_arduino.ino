@@ -19,18 +19,15 @@
 // Camera
 #include "Camera.h"
 #include "Timer.h"
-
 // Servo
 #include <Servo.h> 
+//// Science system
+#include "Science.h"
 
 #include "helper.h"
 
 //// Instantiate the Serial2 class
 Uart Serial2(&sercom1, SERIAL2_RX_PIN, SERIAL2_TX_PIN, SERIAL2_RX_PAD, SERIAL2_TX_PAD);
-
-//// Instantiate servo object for LED, Servo control
-Servo led;
-Servo servo;
 
 // some global variables
 volatile uint16_t offset = 0;
@@ -38,7 +35,6 @@ volatile uint32_t curr_time_base = 0;
 volatile bool utc_clock = false;
 volatile uint32_t start_time = 0;
 volatile uint32_t battery_time = 0;
-String science_str;
 
 float battery_voltage[BATTERY_PUB_SIZE];
 float battery_current[BATTERY_PUB_SIZE];
@@ -52,12 +48,10 @@ volatile int led_brightness = LED_MIN_LIGHT;
 ros::NodeHandle nh;
 // published messages
 std_msgs::String str_msg;
-std_msgs::String debug_msg;
 std_msgs::Float32MultiArray battery_msg;
 
 // publishers for for system level
 ros::Publisher msg_pub("/rov/synchronizer/system", &str_msg);
-ros::Publisher debug_pub("/rov/synchronizer/debug_msg", &debug_msg);
 // publishers for sub_system level (battery ...)
 ros::Publisher battery_pub("/rov/synchronizer/battery", &battery_msg);
 
@@ -92,6 +86,13 @@ Camera cam(&nh, CAM_TOPIC, CAM_RATE, timer_cam, CAM_TYPE,
 //// Setup timer for PPS generation 
 Pps pps(&nh, PPS_TOPIC, PPS_TRIGGER_PIN, &Serial2);
 
+//// Setup Science system
+Science sci(&nh, SCIENCE_TOPIC, &Serial1); 
+
+//// Instantiate servo object for LED, Servo control
+Servo led;
+Servo servo;
+
 void setup() { 
   delay(1000);
 
@@ -108,7 +109,6 @@ void setup() {
   nh.subscribe(servoCmd_sub);
   //// pub
   nh.advertise(msg_pub);
-  nh.advertise(debug_pub);
   nh.advertise(battery_pub);
 
 /* -----  Camera Setting ----- */
@@ -187,12 +187,8 @@ void setup() {
 }
 
 void loop() {
-/* ==================== Handle cam info publishing ==================== */
   //// heandle image time message publishing
   cam.publish(utc_clock, curr_time_base, start_time);
-
-
-/* ==================== Handle PPS time publishing ==================== */
 
   //// heandle time message publishing, take 0.002 second
   pps.publish(utc_clock, curr_time_base, start_time);
@@ -245,19 +241,8 @@ void loop() {
     }
   }
 
-
-/* ==================== Handle Synchronizer System information publishing to onboard computer ==================== */
-  ////  send science system info, about 390 microsecond
-  while(Serial1.available()) {
-    science_str += char(Serial1.read());
-  }
-  //// a line is received, which means '\n' is found
-  if (science_str.lastIndexOf('\n') > 0) {
-    str_msg.data = science_str.c_str();
-    msg_pub.publish(&str_msg);
-
-    science_str="";
-  } 
+  //// Handle Synchronizer System information publishing to onboard computer
+  sci.receive();
 
   nh.spinOnce();
 }
@@ -355,6 +340,9 @@ void clockCallback(const std_msgs::UInt32 &msg) {
     start_time = micros();
     utc_clock = true;
     curr_time_base = msg.data;
+
+    //// setup science system clock
+    sci.setClock(utc_clock, start_time, curr_time_base);
   }
   else {
     //// Info to onboard computer 
@@ -365,43 +353,7 @@ void clockCallback(const std_msgs::UInt32 &msg) {
 
 // callback for science task id from onboard computer
 void sciTaskCallback(const std_msgs::String &msg) {
-  // check size, start and end delimiters: #id*
-  if(strlen( (const char* ) msg.data) ==3 && msg.data[0] == '#' && msg.data[2] == '*') {
-    switch (msg.data[1]) {
-      // stop record
-      case '0': {
-        Serial1.write("$0,*\n",6);
-        break;
-      }
-      // start record
-      case '1': {
-        // get arduino clock after reset new clock
-        uint32_t time_aft_start, latest_sec;
-        time_aft_start = micros() - start_time;
-        if(utc_clock)
-          latest_sec = curr_time_base + time_aft_start / 1000000;
-        else
-          latest_sec = TIME_BASE + time_aft_start / 1000000;
-        // get ready message
-        String str_time = String(latest_sec);
-        String str_all = String("$1," + str_time + ",7,*\n");
-        // send
-        // Serial1.write(str_all.c_str(), sizeof(str_all));
-        Serial1.write(str_all.c_str());
-        break;
-      }
-      // print saved file path
-      case '2': {
-        Serial1.write("$2,*\n", 6);
-        break;
-      }
-      // display latest sensor data
-      case '3': {
-        Serial1.write("$3,*\n", 6);
-        break;
-      }
-      default:
-        break;
-    }
-  }
+
+  sci.publish(msg.data);
+
 }
