@@ -23,6 +23,8 @@
 #include <Servo.h> 
 //// Science system
 #include "Science.h"
+//// Battery
+#include "Battery.h"
 
 #include "helper.h"
 
@@ -31,11 +33,6 @@ Uart Serial2(&sercom1, SERIAL2_RX_PIN, SERIAL2_TX_PIN, SERIAL2_RX_PAD, SERIAL2_T
 
 // some global variables
 volatile uint16_t offset = 0;
-volatile uint32_t battery_time = 0;
-
-float battery_voltage[BATTERY_PUB_SIZE];
-float battery_current[BATTERY_PUB_SIZE];
-int battery_size = 0;
 
 // LED setting
 volatile bool led_mode = LED_TRIGGER_MODE; // true: trigger LED when camera do exposure; false: always on
@@ -45,12 +42,9 @@ volatile int led_brightness = LED_MIN_LIGHT;
 ros::NodeHandle nh;
 // published messages
 std_msgs::String str_msg;
-std_msgs::Float32MultiArray battery_msg;
 
 // publishers for for system level
 ros::Publisher msg_pub("/rov/synchronizer/system", &str_msg);
-// publishers for sub_system level (battery ...)
-ros::Publisher battery_pub("/rov/synchronizer/battery", &battery_msg);
 
 // callback for reset flag from onboard computer
 void resetCallback(const std_msgs::Bool &msg) { NVIC_SystemReset(); }
@@ -74,20 +68,20 @@ ros::Subscriber<std_msgs::UInt16> ledCmd_sub("/rov/synchronizer/led/cmd", &ledCm
 ros::Subscriber<std_msgs::Bool> ledMode_sub("/rov/synchronizer/led/mode", &ledModeCallback);
 ros::Subscriber<std_msgs::UInt16> servoCmd_sub("/rov/synchronizer/servo/cmd", &servoCmdCallback);
 
-/* ==================== Trigger ==================== */
-//// Setup timer for Camera trigger
+/* ==================== Objects ==================== */
+
+//// Instantiate Camera object
 Timer timer_cam = Timer((Tcc *)TCC0);
-Camera cam(&nh, CAM_TOPIC, CAM_RATE, timer_cam, CAM_TYPE, 
-            CAM_TRIGGER_PIN, CAM_EXPOSURE_PIN, false);
-
-//// Setup timer for PPS generation 
+Camera cam(&nh, CAM_TOPIC, CAM_RATE, timer_cam, CAM_TYPE, CAM_TRIGGER_PIN, CAM_EXPOSURE_PIN, false);
+//// Instantiate PPS object
 Pps pps(&nh, PPS_TOPIC, PPS_TRIGGER_PIN, &Serial2);
-
-//// Setup Science system
+//// Instantiate Science object
 Science sci(&nh, SCIENCE_TOPIC, &Serial1); 
-
-//// Instantiate servo object for LED, Servo control
+//// Instantiate Battery object
+Battery battery(&nh, BATTERY_TOPIC);
+//// Instantiate LED object
 Servo led;
+//// Instantiate Servo object
 Servo servo;
 
 void setup() { 
@@ -106,7 +100,6 @@ void setup() {
   nh.subscribe(servoCmd_sub);
   //// pub
   nh.advertise(msg_pub);
-  nh.advertise(battery_pub);
 
 /* -----  Camera Setting ----- */
   cam.setup();
@@ -191,51 +184,7 @@ void loop() {
   pps.publish();
 
 /* ==================== Handle battery info publishing ==================== */
-  //// get measurements every 1s
-  uint32_t battery_now = micros();
-  if(battery_now - battery_time > BATTERY_MEASURE_TIME) {
-    //// read analog measurements
-    int currentValue = analogRead(BATTERY_CURRENT_PIN);
-    int voltageValue = analogRead(BATTERY_VOLTAGE_PIN);
-    //// store actual measurements
-    battery_current[battery_size] = (currentValue * (3.3/1024.0)-0.33)*38.8788;
-    battery_voltage[battery_size] = voltageValue * (3.3/1024.0)* 12.0;
-    battery_size ++;
-    //// mark current time
-    battery_time = micros();
-  }
-
-  //// publish measurements every 5s
-  if(battery_size == BATTERY_PUB_SIZE) {
-    //// get stored measurements
-    float avg_current = 0;
-    float avg_voltage = 0;
-    for(int i=0; i<BATTERY_PUB_SIZE; i++) {
-      avg_current += battery_current[i];
-      avg_voltage += battery_voltage[i];
-    }
-    //// clean the store buffer
-    battery_size = 0;
-    memset(battery_current, 0, sizeof(battery_current));
-    memset(battery_voltage, 0, sizeof(battery_voltage));
-
-    //// put into ROS msg
-    float measurement[2];
-    measurement[0] = avg_current/BATTERY_PUB_SIZE;
-    measurement[1] = avg_voltage/BATTERY_PUB_SIZE;
-    battery_msg.data = measurement;
-    battery_msg.data_length = 2; 
-    //// publish
-    battery_pub.publish( &battery_msg );
-
-    // //// sending warning:
-    if ( measurement[1] <= BATTERY_WARNING) {
-      String vol = String(measurement[1]);
-      String err = String("W: dangerous battery " + vol);
-      str_msg.data = String(err).c_str();
-      msg_pub.publish(&str_msg);
-    }
-  }
+  battery.measurement();
 
   //// receive message from sciecen system
   sci.receive();

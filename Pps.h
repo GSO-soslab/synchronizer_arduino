@@ -63,9 +63,9 @@ private:
   char gpzda[100];
 
   //// Clock 
-  bool utc_clock_;
-  uint32_t start_time_;
-  uint32_t curr_time_base_;
+  volatile bool utc_clock_;
+  volatile uint32_t start_time_;
+  volatile uint32_t curr_time_base_;
 
   // pps time used in microstrain ahrs for tims sync
   volatile bool available_;

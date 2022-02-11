@@ -54,6 +54,7 @@
 #define LED_TRIGGER_MODE false  
 
 //// Battery
+#define BATTERY_TOPIC "/rov/synchronizer/battery/"
 #define BATTERY_MEASURE_TIME 1000000 // 1 second
 #define BATTERY_PUB_SIZE 5
 #define BATTERY_WARNING 12.0

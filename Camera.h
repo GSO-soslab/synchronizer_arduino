@@ -95,9 +95,9 @@ private:
   uint32_t exposure_sec_;
 
   //// Clock 
-  bool utc_clock_;
-  uint32_t start_time_;
-  uint32_t curr_time_base_;
+  volatile bool utc_clock_;
+  volatile uint32_t start_time_;
+  volatile uint32_t curr_time_base_;
 };
 
 #endif
