@@ -10,6 +10,13 @@ Science::Science(ros::NodeHandle *nh, const String &topic, HardwareSerial* seria
   serial_ = serial;
 }
 
+
+void Science::setClock(bool utc_clock, uint32_t start_time, uint32_t curr_time_base) {
+  utc_clock_      = utc_clock;
+  start_time_     = start_time;
+  curr_time_base_ = curr_time_base;
+}
+
 void Science::receive() {
 
   //// append received every byte
@@ -26,7 +33,6 @@ void Science::receive() {
   }  
 
   //// TODO: handle message from science system, no need to send all heartbeat all the times
-
 }
 
 void Science::publish(const char* msg) {
@@ -78,10 +84,4 @@ void Science::publish(const char* msg) {
     }
   }
 
-}
-
-void Science::setClock(bool utc_clock, uint32_t start_time, uint32_t curr_time_base) {
-  utc_clock_      = utc_clock;
-  start_time_     = start_time;
-  curr_time_base_ = curr_time_base;
 }

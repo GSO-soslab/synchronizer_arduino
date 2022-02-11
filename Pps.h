@@ -33,14 +33,9 @@ public:
 
   uint32_t getTime() { return time_; };
 
-  char * getGPGGA() { return gpgga; };
-  char * getGPGSA() { return gpgsa; };
-  char * getGPGSV1() { return gpgsv_1; };
-  char * getGPGSV2() { return gpgsv_2; };
-  char * getGPRMC() { return gprmc; };
-  char * getGPZDA() { return gpzda; };
+  void setClock(bool utc_clock, uint32_t start_time, uint32_t curr_time_base);
 
-  void publish(bool utc_clock, uint32_t curr_time_base, uint32_t start_time);
+  void publish();
 
 private:
 
@@ -66,6 +61,11 @@ private:
   char gpgsv_2[100];
   char gprmc[100];
   char gpzda[100];
+
+  //// Clock 
+  bool utc_clock_;
+  uint32_t start_time_;
+  uint32_t curr_time_base_;
 
   // pps time used in microstrain ahrs for tims sync
   volatile bool available_;

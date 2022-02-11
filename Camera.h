@@ -39,7 +39,9 @@ public:
   void exposureEndPrimary();
   void exposureEndSecond();
 
-  void publish(bool utc_clock, uint32_t curr_time_base, uint32_t start_time);
+  void publish();
+  void setClock(bool utc_clock, uint32_t start_time, uint32_t curr_time_base);
+
   void setup();      // Setup publishers and pins.
   void initialize(); // Perform initialization procedure.
   void setupPublisher();
@@ -85,15 +87,17 @@ private:
   unsigned long exposure_delay_ticks_;
 
   // ROS related.
-
   ros::Subscriber<std_msgs::Bool, Camera> init_subscriber_;
   bool initialized_;
   uint8_t initialized_cam_;
 
-
   uint32_t exposure_pri_;
   uint32_t exposure_sec_;
 
+  //// Clock 
+  bool utc_clock_;
+  uint32_t start_time_;
+  uint32_t curr_time_base_;
 };
 
 #endif

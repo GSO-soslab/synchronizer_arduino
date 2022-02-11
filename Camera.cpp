@@ -20,13 +20,15 @@ Camera::Camera(ros::NodeHandle *nh, const String &topic, const int rate_hz,
                const uint8_t trigger_pin /*= 0 */,
                const uint8_t exposure_pin /*= 0 */,
                const bool exposure_compensation /*= true*/)
-    : Sensor(nh, topic, rate_hz, timer, image_time_msg_, test_msg_, info_msg_, type),
-      trigger_pin_(trigger_pin), exposure_pin_(exposure_pin),
-      exposure_compensation_(exposure_compensation), configured_(true),
-      compensating_(false), exposing_(false), image_number_(0),
-      init_subscriber_((topic + "init").c_str(), &Camera::initCallback, this),
-      initialized_(false), initialized_cam_(0),
-      exposure_pri_(0), exposure_sec_(0)
+  : Sensor(nh, topic, rate_hz, timer, image_time_msg_, test_msg_, info_msg_, type),
+    trigger_pin_(trigger_pin), exposure_pin_(exposure_pin),
+    exposure_compensation_(exposure_compensation), configured_(true),
+    compensating_(false), exposing_(false), image_number_(0),
+    init_subscriber_((topic + "init").c_str(), &Camera::initCallback, this),
+    initialized_(false), initialized_cam_(0),
+    exposure_pri_(0), exposure_sec_(0),
+    curr_time_base_(0), utc_clock_(false), start_time_(0)
+
 {
   Sensor::newMeasurementIsNotAvailable();
 }
@@ -79,7 +81,13 @@ void Camera::initialize() {
   ++image_number_;
   image_time_msg_.number = image_number_;
   Sensor::newMeasurementIsAvailable();
-  publish(false, 0, 0);
+  publish();
+}
+
+void Camera::setClock(bool utc_clock, uint32_t start_time, uint32_t curr_time_base) {
+  utc_clock_      = utc_clock;
+  start_time_     = start_time;
+  curr_time_base_ = curr_time_base;
 }
 
 void Camera::begin() {
@@ -236,7 +244,7 @@ void Camera::exposureEndSecond() {
 
 }
 
-void Camera::publish(bool utc_clock, uint32_t curr_time_base, uint32_t start_time) {
+void Camera::publish() {
   //// make sure parimary cam is trigged, 
   //// make sure parimary cam is exposured
   //// make sure secondary cam is exposured
@@ -244,10 +252,10 @@ void Camera::publish(bool utc_clock, uint32_t curr_time_base, uint32_t start_tim
 
     // get time duration after UTC clock is set 
     uint32_t time_aft_start, sec_part, msec_part;
-    time_aft_start = Sensor::getTimestamp() - start_time;
+    time_aft_start = Sensor::getTimestamp() - start_time_;
     // get second part
-    if(utc_clock) 
-      sec_part = curr_time_base + time_aft_start / 1000000;
+    if(utc_clock_) 
+      sec_part = curr_time_base_ + time_aft_start / 1000000;
     else
       sec_part = TIME_BASE + time_aft_start / 1000000;
     // get microssecond part

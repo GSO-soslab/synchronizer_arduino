@@ -5,7 +5,8 @@
 Pps::Pps(ros::NodeHandle *nh, const String &topic, const uint8_t trigger_pin, HardwareSerial* serial) 
   : nh_(nh),  trigger_pin_(trigger_pin), available_(false), micro_offset_(0),
     topic_time_(topic+"time"), publisher_time_(topic_time_.c_str(), &pps_time_msg_),
-    topic_info_(topic+"info"), publisher_info_(topic_info_.c_str(), &pps_info_msg_)
+    topic_info_(topic+"info"), publisher_info_(topic_info_.c_str(), &pps_info_msg_),
+    curr_time_base_(0), utc_clock_(false), start_time_(0)
 {
   publisher_time_ = ros::Publisher("/rov/synchronizer/pps/time", &pps_time_msg_);
   publisher_info_ = ros::Publisher("/rov/synchronizer/pps/info", &pps_info_msg_);
@@ -45,6 +46,12 @@ void Pps::begin() {
   while (TCC2->SYNCBUSY.bit.ENABLE);             // Wait for synchronization  
 }
 
+void Pps::setClock(bool utc_clock, uint32_t start_time, uint32_t curr_time_base) {
+  utc_clock_      = utc_clock;
+  start_time_     = start_time;
+  curr_time_base_ = curr_time_base;
+}
+
 void Pps::setTimeNow() {
   if (TCC2->INTFLAG.bit.OVF && TCC2->INTENSET.bit.OVF)      // Optionally check for overflow (OVF) interrupt      
   {   
@@ -60,17 +67,17 @@ void Pps::setNotAvailable() {
   available_ = false;
 }
 
-void Pps::publish(bool utc_clock, uint32_t curr_time_base, uint32_t start_time) {
+void Pps::publish() {
 
   if(isAvailable()) {
     uint32_t t1 = micros();
 
     //// get time duration after UTC clock is set 
     uint32_t time_aft_utc, latest_sec;
-    time_aft_utc = time_ - start_time;
+    time_aft_utc = time_ - start_time_;
     //// get second part
-    if(utc_clock) 
-      latest_sec = curr_time_base + time_aft_utc / 1000000;
+    if(utc_clock_) 
+      latest_sec = curr_time_base_ + time_aft_utc / 1000000;
     else
       latest_sec = TIME_BASE + time_aft_utc / 1000000;
     //// get microssecond part

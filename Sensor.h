@@ -37,7 +37,7 @@ public:
   inline virtual void setup(){/* do nothing */};
   inline virtual void begin(){/* do nothing */};
   inline virtual void triggerMeasurement() = 0;
-  inline virtual void publish(bool utc_clock, uint32_t curr_time_base, uint32_t start_time) = 0;
+  inline virtual void publish() = 0;
   inline virtual void setupPublisher() = 0;
 
   void setTimestampNow();

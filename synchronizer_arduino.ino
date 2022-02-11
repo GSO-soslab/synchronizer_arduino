@@ -31,9 +31,6 @@ Uart Serial2(&sercom1, SERIAL2_RX_PIN, SERIAL2_TX_PIN, SERIAL2_RX_PAD, SERIAL2_T
 
 // some global variables
 volatile uint16_t offset = 0;
-volatile uint32_t curr_time_base = 0;
-volatile bool utc_clock = false;
-volatile uint32_t start_time = 0;
 volatile uint32_t battery_time = 0;
 
 float battery_voltage[BATTERY_PUB_SIZE];
@@ -181,18 +178,17 @@ void setup() {
   analogReadResolution(10);
   analogReference(AR_DEFAULT);
 
-  //// Zero and Science system communication
+  //// Science system communication
   Serial1.begin(9600);
   Serial1.setTimeout(10);
 }
 
 void loop() {
   //// heandle image time message publishing
-  cam.publish(utc_clock, curr_time_base, start_time);
+  cam.publish();
 
   //// heandle time message publishing, take 0.002 second
-  pps.publish(utc_clock, curr_time_base, start_time);
-
+  pps.publish();
 
 /* ==================== Handle battery info publishing ==================== */
   //// get measurements every 1s
@@ -241,7 +237,7 @@ void loop() {
     }
   }
 
-  //// Handle Synchronizer System information publishing to onboard computer
+  //// receive message from sciecen system
   sci.receive();
 
   nh.spinOnce();
@@ -337,12 +333,16 @@ void clockCallback(const std_msgs::UInt32 &msg) {
     pps.begin();
 
     //// record arduino clock received UTC clock
-    start_time = micros();
-    utc_clock = true;
-    curr_time_base = msg.data;
+    uint32_t start_time = micros();
+    bool utc_clock = true;
+    uint32_t curr_time_base = msg.data;
 
     //// setup science system clock
     sci.setClock(utc_clock, start_time, curr_time_base);
+    //// setup pps clock
+    pps.setClock(utc_clock, start_time, curr_time_base);
+    //// setup cam clock
+    cam.setClock(utc_clock, start_time, curr_time_base);
   }
   else {
     //// Info to onboard computer 
