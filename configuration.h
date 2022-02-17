@@ -35,23 +35,28 @@
 
 //// Cameras
 #define CAM_TOPIC "/rov/synchronizer/cam/"
-#define CAM_RATE 20 
+#define CAM_RATE 5 
 #define CAM_TYPE trigger_type::NON_INVERTED
 #define CAM_TRIGGER_PIN 14
 #define CAM_EXPOSURE_PIN 5
 #define CAM_SEC_EXPOSURE_PIN 8
+
+//// LED
+enum led_modes{
+  LED_MODE_SERVO = 0,
+  LED_MODE_FLASH = 1
+};
+
+#define LED_TOPIC "/rov/synchronizer/led/"
+#define LED_TRIGGER_PIN 4
+#define LED_PWM_MIN 1100          
+#define LED_PWM_max 1900          
 
 //// Servo
 #define SERVO_TOPIC "/rov/synchronizer/servo/"
 #define SERVO_TRIGGER_PIN 3
 #define SERVO_UP_POS 30
 #define SERVO_FORWARD_POS 64
-
-//// LED
-#define LED_TOPIC "/rov/synchronizer/led/"
-#define LED_TRIGGER_PIN 4
-#define LED_MIN_LIGHT 40        // this value close LED
-#define LED_TRIGGER_MODE false  
 
 //// Battery
 #define BATTERY_TOPIC "/rov/synchronizer/battery/"

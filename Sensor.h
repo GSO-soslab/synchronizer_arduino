@@ -56,7 +56,6 @@ protected:
   ros::NodeHandle *nh_;
   String topic_;
   ros::Publisher publisher_;
-  ros::Publisher publisher_test;
   ros::Publisher publisher_information_;
 
 

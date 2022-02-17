@@ -16,7 +16,6 @@ Sensor::Sensor(ros::NodeHandle *nh, const String &topic, const int rate_hz,
                std_msgs::String &info_msg, const trigger_type type /* = trigger_type::NON_INVERTED */)
     : nh_(nh), topic_(topic),
       publisher_((topic + "img_time").c_str(), &img_time_msg),
-      publisher_test((topic + "expo_time").c_str(), &test_msg),
       publisher_information_((topic + "sys_info").c_str(), &info_msg),
       new_measurement_available_(0), rate_hz_(rate_hz), timer_(timer),
       type_(type), max_compare_(pow(2, 16)) 
@@ -59,7 +58,7 @@ Sensor::Sensor(ros::NodeHandle *nh, const String &topic, const int rate_hz,
 //                Timer &timer, std_msgs::Header &pps_msg, synchronizer_ros::TimeNumbered &test_msg,
 //                const trigger_type type /* = trigger_type::NON_INVERTED */)
 //     : nh_(nh), topic_(topic),  publisher_(topic.c_str(), &pps_msg),
-//       publisher_test((topic + "test_time").c_str(), &test_msg), new_measurement_available_(0), 
+//       new_measurement_available_(0), 
 //       rate_hz_(rate_hz), timer_(timer),type_(type), max_compare_(pow(2, 16)) {
 //   if (nh == nullptr) {
 //     error((topic_ + " (Sensor.cpp): The node handle is not available.").c_str(),

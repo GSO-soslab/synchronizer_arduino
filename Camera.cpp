@@ -107,11 +107,7 @@ void Camera::setupPublisher() {
   //// send image time to onboard computer
   publisher_ = ros::Publisher("/rov/synchronizer/cam/image_time", &image_time_msg_);
 
-  //// send exposure time to onboard computer
-  publisher_test = ros::Publisher("/rov/synchronizer/cam/exposure_time", &test_msg_);
-
   nh_->advertise(publisher_);
-  nh_->advertise(publisher_test);
   nh_->advertise(publisher_information_);
 }
 
@@ -194,8 +190,6 @@ void Camera::triggerMeasurement() {
   } else {
     // "Standard" mode where the camera is triggered purely periodic.
     exposing_ = true;
-
-    //// TODO: open led here
 
     // Trigger the actual pulse.
     Sensor::trigger(trigger_pin_, TRIGGER_PULSE_US, type_);
