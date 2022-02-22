@@ -25,12 +25,20 @@ void Science::receive() {
   }
   
   //// a line is received, which means '\n' is found
-  if (str_received_.lastIndexOf('\n') > 0 && !received_) {
+  // if (str_received_.lastIndexOf('\n') > 0 && !received_) {
+  //   msg_info_.data = str_received_.c_str();
+  //   publisher_info_.publish(&msg_info_);
+
+  //   str_received_="";
+  //   received_ = true;
+  // }  
+
+  if (str_received_.lastIndexOf('\n') > 0) {
+
     msg_info_.data = str_received_.c_str();
     publisher_info_.publish(&msg_info_);
 
     str_received_="";
-    received_ = true;
   }  
 
   //// TODO: handle message from science system, no need to send all heartbeat all the times

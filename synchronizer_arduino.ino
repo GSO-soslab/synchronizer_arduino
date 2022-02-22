@@ -34,12 +34,6 @@ Uart Serial2(&sercom1, SERIAL2_RX_PIN, SERIAL2_TX_PIN, SERIAL2_RX_PAD, SERIAL2_T
 // some global variables
 volatile uint16_t offset = 0;
 
-
-volatile bool flash1 = false;
-volatile bool flash2 = false;
-volatile uint32_t time1 = 0;
-volatile uint32_t time2 = 0;
-
 //// LED setting for PWM control brightness
 volatile led_modes led_mode = LED_MODE_SERVO;
 volatile int led_pwm = LED_PWM_MIN;
@@ -191,14 +185,6 @@ void loop() {
   //// heandle image time message publishing
   cam.publish();
 
-  if(flash1 && flash2) {
-    flash1 = false;
-    flash2 = false;
-    uint32_t time_offset = time2-time1;
-    // str_msg.data = String(time_offset).c_str();
-    // msg_pub.publish(&str_msg); 
-  }
-
   //// heandle time message publishing, take 0.002 second
   pps.publish();
 
@@ -225,11 +211,9 @@ void TCC2_Handler() {
 void TCC0_Handler() { 
   
   //// Turn on LED before camera exposure
-  if(led_mode == LED_MODE_FLASH)
+  if(led_mode == LED_MODE_FLASH){
     digitalWrite(LED_TRIGGER_PIN, HIGH);
-
-  flash1 = true;
-  time1 = micros();
+  }
 
   cam.triggerMeasurement();
 }
@@ -243,9 +227,6 @@ void exposureStateSecond() {
   //// LED only close after the secondary camera finish exposure
   //// since secondary camera exposure will late 80 us after primary camera
   cam.exposureEndSecond();
-
-  flash2 = true;
-  time2 = micros();
 
   //// Turn off LED after second camera exposure finished
   if(led_mode == LED_MODE_FLASH)
@@ -262,13 +243,14 @@ void ledCallback( const std_msgs::String& msg){
   //// check string is consistent
   if(msg.data[0] == '#' && msg.data[size-1] == '*') {
     //// except header:'#'; mode:'0'; delimiter:','; end:'*';
-    char *data = new char[size-4];
-    strncpy(data, &msg.data[3], size-4);
 
     //// use the decoded data
     switch (msg.data[1]) {
       //// led mode
       case '0': {
+        //// parse data
+        char data[2];
+        strncpy(data, &msg.data[3], 1);
         led_mode = (led_modes) atoi(data);
 
         if(led_mode == LED_MODE_SERVO){
@@ -293,6 +275,9 @@ void ledCallback( const std_msgs::String& msg){
 
       //// led pwm
       case '1': {
+        //// parse data
+        char data[5];
+        strncpy(data, &msg.data[3], 4);
         led_pwm = atoi (data);
 
         if(led_mode == LED_MODE_SERVO){

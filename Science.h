@@ -38,7 +38,7 @@ private:
   volatile uint32_t start_time_;
   volatile uint32_t curr_time_base_;
 
-  bool received_;
+  volatile bool received_;
 
 };
 
