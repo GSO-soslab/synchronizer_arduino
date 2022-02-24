@@ -28,12 +28,22 @@
 // arduino system time beginning
 #define TIME_BASE 1621258639
 
-//// PPS
+TCC1, TC3, TCC0, TC7, TCC2, TC4, TC6
+
+//// All times:  TCC0, TCC1, TCC2, TC3, TC4, TC5
+
+//// micors2(): TC3
+
+//// Servo control: TC4
+
+//// DVL tigger: TCC1
+
+//// Pps: TCC2
 #define PPS_TOPIC "/rov/synchronizer/pps/"
 #define PPS_TRIGGER_PIN 13
 #define PPS_TIME_DELAY 10 // send pps time after this delay
 
-//// Cameras
+//// Camera: TCC0/TC5
 #define CAM_TOPIC "/rov/synchronizer/cam/"
 #define CAM_RATE 5 
 #define CAM_TYPE trigger_type::NON_INVERTED
