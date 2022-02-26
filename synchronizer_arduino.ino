@@ -109,6 +109,7 @@ void setup() {
 
 /* ----- ROS ----- */
   //// init
+  // nh.getHardware()->setBaud(115200);
   nh.getHardware()->setBaud(250000);
   nh.initNode();
   //// sub
@@ -327,9 +328,6 @@ void servoCmdCallback( const std_msgs::UInt16& msg){
 // check Epoch time: https://www.epochconverter.com/
 void clockCallback(const std_msgs::UInt32 &msg) { 
   if(msg.data > TIME_BASE) {
-    //// Info to onboard computer 
-    str_msg.data = "#system:Arduino clock reset as UTC";
-    msg_pub.publish(&str_msg);
 
     //// start PPS generation 
     pps.begin();
@@ -345,6 +343,10 @@ void clockCallback(const std_msgs::UInt32 &msg) {
     pps.setClock(utc_clock, start_time, curr_time_base);
     //// setup cam clock
     cam.setClock(utc_clock, start_time, curr_time_base);
+
+    //// Info to onboard computer 
+    str_msg.data = "#system:Arduino clock reset as UTC";
+    msg_pub.publish(&str_msg);
   }
   else {
     //// Info to onboard computer 

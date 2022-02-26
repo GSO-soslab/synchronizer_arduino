@@ -28,8 +28,6 @@
 // arduino system time beginning
 #define TIME_BASE 1621258639
 
-TCC1, TC3, TCC0, TC7, TCC2, TC4, TC6
-
 //// All times:  TCC0, TCC1, TCC2, TC3, TC4, TC5
 
 //// micors2(): TC3
