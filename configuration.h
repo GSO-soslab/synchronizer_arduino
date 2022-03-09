@@ -32,7 +32,7 @@
 
 //// Camera: TCC0
 #define CAM_TOPIC "/rov/synchronizer/cam/"
-#define CAM_RATE 20 //5,10,15,20
+#define CAM_RATE 10 //5,10,15,20
 #define CAM_TYPE trigger_type::NON_INVERTED
 #define CAM_TRIGGER_PIN 3
 #define CAM_PRI_EXPOSURE_PIN 5
