@@ -1,4 +1,4 @@
-# in progress
+# TODO
 
 ### + PPS
 - send NMEA string take too much time
