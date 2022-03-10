@@ -192,8 +192,8 @@ void Cam::encodeTimeROS(uint32_t curr_sec, uint32_t curr_micro) {
 
   msg_time_.time = ros::Time(curr_sec, curr_micro*1000);
   msg_time_.number = msg_number_;
-  msg_time_.exposure_pri = exposure_pri_;
-  msg_time_.exposure_sec = exposure_sec_;
+  msg_time_.exposure_pri = exposure_pri_ - CAM_TRIGGER_DELAY;
+  msg_time_.exposure_sec = exposure_sec_ - CAM_TRIGGER_DELAY * 2;
 }
 
 void Cam::publishTimeROS() {
