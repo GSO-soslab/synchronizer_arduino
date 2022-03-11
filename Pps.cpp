@@ -171,7 +171,8 @@ void Pps::encodeTimeGPS(uint32_t curr_time) {
   // 17) <LF>: Line feed, end delimiter 2
   checksum = 0;
   size = sprintf(gpgga, "$GPGGA,%s.00,4129.4837,N,07125.3140,W,2,07,1.04,28.2,M,-34.4,M,,", utc_time);
-                  
+  
+  
   for(int i=1;i<size;i++) {
       checksum^=gpgga[i];
   }
@@ -179,6 +180,9 @@ void Pps::encodeTimeGPS(uint32_t curr_time) {
   
   strcat(gpgga,end);
 
+  // pps_info_msg_.data = gpgga;
+  // publisher_info_.publish(&pps_info_msg_);
+  
 /****** GPGSA  ******/
   // $GPGSA,A,3,10,07,05,02,29,04,08,13,,,,,1.72,1.03,1.38*0A<CR><LF>
   //        1 2  3                       14 15   16   17   18 19 20
