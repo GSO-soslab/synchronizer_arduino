@@ -46,60 +46,54 @@ void Science::receive() {
 
 void Science::publish(const char* msg) {
 
+  //// simple task mode
   // check size, start and end delimiters: #id*
   if(strlen(msg) == 3 && msg[0] == '#' && msg[2] == '*') {
-
     switch (msg[1]) {
       // stop record
       case '0': {
         serial_->write("$0,*\n",6);
         received_ = false;
-
         break;
       }
-
       // start record
       case '1': {
         received_ = false;
-
         // come up with clock
         uint32_t time_aft_start, latest_sec;
         time_aft_start = micros() - start_time_;
-
         if(utc_clock_)
           latest_sec = curr_time_base_ + time_aft_start / 1000000;
         else
           latest_sec = TIME_BASE + time_aft_start / 1000000;
-
         // get ready message
         String str_time = String(latest_sec);
         String str_all = String("$1," + str_time + ",7,*\n");
-
         // send
         serial_->write(str_all.c_str());
         break;
       }
-
       // print saved file path
       case '2': {
         received_ = false;
-
         serial_->write("$2,*\n", 6);
         break;
       }
-
       // display latest sensor data
       case '3': {
         received_ = false;
-
         serial_->write("$3,*\n", 6);
         break;
       }
-
-
       default:
         break;
     }
+  }
+  //// manual command mode
+  else{
+    // serial_->write(msg);
+    msg_info_.data = msg;
+    publisher_info_.publish(&msg_info_);
   }
 
 }
