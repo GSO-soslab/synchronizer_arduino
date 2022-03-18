@@ -78,6 +78,7 @@ enum led_modes{
 
 //// Science system
 #define SCIENCE_TOPIC "/rov/synchronizer/science/"
+#define SCIENCE_SEND_TIME 1000000 // 1 second
 
 /* ---- Test mode ----- */
 // send test information through ROS rostopic 

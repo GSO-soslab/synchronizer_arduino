@@ -15,7 +15,7 @@ public:
 
   void begin();
 
-  void receive();
+  void communicate();
 
   void publish(const char* msg);
 
@@ -39,6 +39,8 @@ private:
   volatile uint32_t curr_time_base_;
 
   volatile bool received_;
+
+  uint32_t time_prev_;
 
 };
 

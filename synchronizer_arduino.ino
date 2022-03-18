@@ -27,10 +27,11 @@
 //// Dvl
 #include "Dvl.h"
 
-//// Instantiate the Serial2 class
+
+//// Instantiate the Serial2 class to send NMEA string from Arduino to Jetson
 Uart Serial2(&sercom1, SERIAL2_RX_PIN, SERIAL2_TX_PIN, SERIAL2_RX_PAD, SERIAL2_TX_PAD);
 
-// some global variables
+//// some global variables
 volatile uint16_t offset = 0;
 
 //// LED setting for PWM control brightness
@@ -66,25 +67,25 @@ ros::Subscriber<std_msgs::UInt16> servoCmd_sub("/rov/synchronizer/servo/cmd", &s
 
 /* ==================== Objects ==================== */
 
-//// Instantiate Camera object
+//// Instantiate Camera object, controlled by Timer TCC0
 Cam cam(&nh, CAM_TOPIC, CAM_TRIGGER_PIN, CAM_RATE);
-//// Instantiate Dvl object
+//// Instantiate Dvl object, controlled by Timer TCC1
 Dvl dvl(&nh, DVL_TOPIC, DVL_TRIGGER_PIN);
-//// Instantiate PPS object
+//// Instantiate PPS object, controlled by Timer TCC2
 Pps pps(&nh, PPS_TOPIC, PPS_TRIGGER_PIN, &Serial2);
 //// Instantiate Science object
-Science sci(&nh, SCIENCE_TOPIC, &Serial1); 
+// Science sci(&nh, SCIENCE_TOPIC, &Serial1); 
 //// Instantiate Battery object
 Battery battery(&nh, BATTERY_TOPIC);
 //// Instantiate LED object
 Servo led;
 //// Instantiate Servo object
-Servo servo;
+// Servo servo;
 
 void setup() { 
 /* -----  Sub-system Setting ----- */
 
-  // start serial2 to send NMEA to Jetson
+  //// start serial2 to send NMEA to Jetson
   Serial2.begin(115200);
   Serial2.setTimeout(10);
 
@@ -93,16 +94,16 @@ void setup() {
   analogReference(AR_DEFAULT);
 
   //// Science system communication
-  Serial1.begin(9600);
-  Serial1.setTimeout(10);
+  // Serial1.begin(9600);
+  // Serial1.setTimeout(10);
 
   //// LED
   led.attach(LED_TRIGGER_PIN);
   led.writeMicroseconds(LED_PWM_MIN);
 
   //// Servo
-  servo.attach(SERVO_TRIGGER_PIN); 
-  servo.write(SERVO_FORWARD_POS);
+  // servo.attach(SERVO_TRIGGER_PIN); 
+  // servo.write(SERVO_FORWARD_POS);
 
 /* ----- ROS ----- */
   //// init
@@ -147,6 +148,7 @@ void setup() {
 
   cam.initialize();
   dvl.initialize();
+
 /* ----- Interrupt for measuring the exposure time. ----- */
 
   noInterrupts(); 
@@ -172,11 +174,11 @@ void loop() {
   //// heandle time message publishing, take 0.03 second?
   pps.publish();
 
-/* ==================== Handle battery info publishing ==================== */
+  //// Handle battery info publishing
   battery.measurement();
 
-  //// receive message from sciecen system
-  sci.receive();
+  //// communication with sciecen system
+  // sci.communicate();
 
   nh.spinOnce();
 }
@@ -187,17 +189,16 @@ void SERCOM1_Handler()
   Serial2.IrqHandler();
 }
 
-void TCC1_Handler() { 
-  
-  dvl.setTimeNow();
-}
-
 void TCC0_Handler() { 
   //// Turn on LED before camera exposure
   if(led_mode == LED_MODE_FLASH)
     digitalWrite(LED_TRIGGER_PIN, HIGH);
 
   cam.setTimeNow();
+}
+
+void TCC1_Handler() { 
+  dvl.setTimeNow();
 }
 
 void TCC2_Handler() {
@@ -295,17 +296,17 @@ void ledCallback( const std_msgs::String& msg){
 //// callback for Servo rotation position
 void servoCmdCallback( const std_msgs::UInt16& msg){
 
-  int data = msg.data;
-  //// Info to onboard computer 
-  str_msg.data = String("#Servo: rotate received " + String(data)).c_str() ;
-  msg_pub.publish(&str_msg); 
+  // int data = msg.data;
+  // //// Info to onboard computer 
+  // str_msg.data = String("#Servo: rotate received " + String(data)).c_str() ;
+  // msg_pub.publish(&str_msg); 
   
-  if(msg.data >= SERVO_FORWARD_POS)
-    servo.write(SERVO_FORWARD_POS); //set to forward-looking limition. in case borken sonar cover
-  else if (msg.data <= SERVO_UP_POS)
-    servo.write(SERVO_UP_POS); //set to up-looking limition.
-  else
-    servo.write(msg.data); //set servo angle, should be from 0-180
+  // if(msg.data >= SERVO_FORWARD_POS)
+  //   servo.write(SERVO_FORWARD_POS); //set to forward-looking limition. in case borken sonar cover
+  // else if (msg.data <= SERVO_UP_POS)
+  //   servo.write(SERVO_UP_POS); //set to up-looking limition.
+  // else
+  //   servo.write(msg.data); //set servo angle, should be from 0-180
 }
 
 // callback for setting arduino clock
@@ -321,14 +322,14 @@ void clockCallback(const std_msgs::UInt32 &msg) {
     bool utc_clock = true;
     uint32_t curr_time_base = msg.data;
 
-    //// setup science system clock
-    sci.setClock(utc_clock, start_time, curr_time_base);
-    //// setup pps clock
-    pps.setClock(utc_clock, start_time, curr_time_base);
     //// setup cam clock
     cam.setClock(utc_clock, start_time, curr_time_base);
     //// setup dvl clock
     dvl.setClock(utc_clock, start_time, curr_time_base);
+    //// setup pps clock
+    pps.setClock(utc_clock, start_time, curr_time_base);
+    //// setup science system clock
+    // sci.setClock(utc_clock, start_time, curr_time_base);
 
     //// Info to onboard computer 
     str_msg.data = "#system:Arduino clock reset as UTC";
@@ -343,7 +344,5 @@ void clockCallback(const std_msgs::UInt32 &msg) {
 
 // callback for science task id from onboard computer
 void sciTaskCallback(const std_msgs::String &msg) {
-
-  sci.publish(msg.data);
-
+  // sci.publish(msg.data);
 }
