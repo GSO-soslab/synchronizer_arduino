@@ -5,6 +5,7 @@
 #include <ros.h>
 #include <std_msgs/String.h>
 #include <std_msgs/Bool.h>
+#include <std_msgs/Time.h>
 #include <time.h>
 #include "configuration.h"
 #include <synchronizer_ros/TimeNumbered.h>
@@ -24,7 +25,7 @@ public:
   
   bool isAvailable() { return available_; };
 
-  void encodeTimeROS(uint32_t curr_sec, uint32_t curr_micro);
+  void encodeTimeROS();
 
   void publishTimeROS();
 
@@ -72,6 +73,11 @@ private:
   std_msgs::String msg_info_;
 
   //// Clock 
+  ros::Time time_cam_;
+  volatile uint32_t time_curr_;
+  volatile uint32_t time_last_;
+
+
   volatile bool utc_clock_;
   volatile uint32_t start_time_;
   volatile uint32_t curr_time_base_;

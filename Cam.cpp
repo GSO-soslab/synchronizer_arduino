@@ -6,7 +6,8 @@ Cam::Cam(ros::NodeHandle *nh, const String &topic, const uint8_t trigger_pin, co
     topic_time_(topic+"time"), publisher_time_(topic_time_.c_str(), &msg_time_),
     topic_info_(topic+"info"), publisher_info_(topic_info_.c_str(), &msg_info_),
     subscriber_init_((topic + "init").c_str(), &Cam::initCallback, this),
-    exposure_pri_(0), exposure_sec_(0)
+    exposure_pri_(0), exposure_sec_(0),
+    time_curr_(0), time_last_(0), time_cam_(ros::Time(TIME_BASE,0))
 {
   publisher_time_  = ros::Publisher("/rov/synchronizer/cam/time", &msg_time_);
   publisher_info_  = ros::Publisher("/rov/synchronizer/cam/info", &msg_info_);
@@ -144,7 +145,9 @@ void Cam::setTimeNow() {
   {   
     TCC0->INTFLAG.bit.OVF = 1;                                     // Clear the overflow (OVF) interrupt flag
 
-    time_ = micros();
+    // time_ = micros();
+    time_curr_ = micros();
+
     msg_number_++;
     available_ = true;
   }  
@@ -155,30 +158,54 @@ void Cam::setNotAvailable() {
 }
 
 void Cam::exposurePrimary() {
-  exposure_pri_ = micros() - time_;
+  // exposure_pri_ = micros() - time_;
+
+  exposure_pri_ = micros() - time_curr_;
 }
 
 void Cam::exposureSecondary() {
-  exposure_sec_ = micros() - time_;
+  // exposure_sec_ = micros() - time_;
+  exposure_sec_ = micros() - time_curr_;
 }
 
 void Cam::publish() {
 
   if(isAvailable()) {
 
-    //// get time duration after UTC clock is set 
-    uint32_t time_aft_utc, latest_sec, latest_micro;
-    time_aft_utc = time_ - start_time_;
-    //// get second part
-    if(utc_clock_) 
-      latest_sec = curr_time_base_ + time_aft_utc / 1000000;
-    else
-      latest_sec = TIME_BASE + time_aft_utc / 1000000;
-    //// get microssecond part
-    latest_micro = time_aft_utc % 1000000;   
+    // get ready of cam ros time from :
+    //    UTC time base 
+    //    time duration from UTC arrived Arduino to current camera trigger
+    if(utc_clock_) {
+      uint32_t time_aft_utc = time_curr_ - start_time_;
+      uint32_t latest_sec = curr_time_base_ + time_aft_utc / 1000000;
+      uint32_t latest_micro = time_aft_utc % 1000000;
+      time_cam_ = ros::Time(latest_sec, latest_micro*1000);
 
-    //// encode time format
-    encodeTimeROS(latest_sec, latest_micro);
+      time_last_ = time_curr_;
+      utc_clock_ = false;
+    }
+    else {
+      uint32_t time_aft_tigger, latest_sec, latest_nsec;
+
+      time_aft_tigger = time_curr_ - time_last_;
+      latest_nsec = time_cam_.nsec + time_aft_tigger * 1000;
+
+      uint8_t flag = latest_nsec/1000000000;
+      if(flag > 0){
+        latest_sec = time_cam_.sec + 1;
+        latest_nsec = latest_nsec % 1000000000;
+      }
+      else{
+        latest_sec = time_cam_.sec ;
+        latest_nsec = latest_nsec % 1000000000;
+      }
+
+      time_cam_ = ros::Time(latest_sec, latest_nsec);
+
+      time_last_ = time_curr_;
+    }
+
+    encodeTimeROS();
 
     //// publish time 
     publishTimeROS();
@@ -188,9 +215,9 @@ void Cam::publish() {
   }
 }
 
-void Cam::encodeTimeROS(uint32_t curr_sec, uint32_t curr_micro) {
+void Cam::encodeTimeROS() {
 
-  msg_time_.time = ros::Time(curr_sec, curr_micro*1000);
+  msg_time_.time = time_cam_;
   msg_time_.number = msg_number_;
   msg_time_.exposure_pri = exposure_pri_ - CAM_TRIGGER_DELAY;
   msg_time_.exposure_sec = exposure_sec_ - CAM_TRIGGER_DELAY * 2;

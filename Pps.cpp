@@ -6,7 +6,9 @@ Pps::Pps(ros::NodeHandle *nh, const String &topic, const uint8_t trigger_pin, Ha
   : nh_(nh),  trigger_pin_(trigger_pin), available_(false), micro_offset_(0),
     topic_time_(topic+"time"), publisher_time_(topic_time_.c_str(), &pps_time_msg_),
     topic_info_(topic+"info"), publisher_info_(topic_info_.c_str(), &pps_info_msg_),
-    curr_time_base_(0), utc_clock_(false), start_time_(0)
+    curr_time_base_(0), utc_clock_(false), start_time_(0),
+    time_curr_(0), time_last_(0), time_pps_(ros::Time(TIME_BASE,0))
+
 {
   publisher_time_ = ros::Publisher("/rov/synchronizer/pps/time", &pps_time_msg_);
   publisher_info_ = ros::Publisher("/rov/synchronizer/pps/info", &pps_info_msg_);
@@ -56,7 +58,8 @@ void Pps::setTimeNow() {
   {   
     TCC2->INTFLAG.bit.OVF = 1;                              // Clear the overflow (OVF) interrupt flag
 
-    time_ = micros();
+    // time_ = micros();
+    time_curr_ = micros();
 
     available_ = true;
   }  
@@ -70,22 +73,59 @@ void Pps::publish() {
 
   if(isAvailable()) {
     //// TEST: check pps publish time cost
-    // uint32_t t1 = micros();
 
-    //// get time duration after UTC clock is set 
-    uint32_t time_aft_utc, latest_sec;
-    time_aft_utc = time_ - start_time_;
-    //// get second part
-    if(utc_clock_) 
-      latest_sec = curr_time_base_ + time_aft_utc / 1000000;
-    else
-      latest_sec = TIME_BASE + time_aft_utc / 1000000;
-    //// get microssecond part
-    //micro_offset_ = time_aft_utc % 1000000;   
+ // get ready of cam ros time from :
+    //    UTC time base 
+    //    time duration from UTC arrived Arduino to current camera trigger
+    if(utc_clock_) {
+      uint32_t time_aft_utc = time_curr_ - start_time_;
+      uint32_t latest_sec = curr_time_base_ + time_aft_utc / 1000000;
+      uint32_t latest_micro = time_aft_utc % 1000000;
+      time_pps_ = ros::Time(latest_sec, latest_micro*1000);
+
+      time_last_ = time_curr_;
+      utc_clock_ = false;
+    }
+    else {
+      uint32_t time_aft_tigger, latest_sec, latest_nsec;
+
+      time_aft_tigger = time_curr_ - time_last_;
+      latest_nsec = time_pps_.nsec + time_aft_tigger * 1000;
+
+      // //// TEST:
+      // String str_dura = String(time_aft_tigger);
+      // pps_info_msg_.data = str_dura.c_str();
+      // publisher_info_.publish(&pps_info_msg_);
+
+      uint8_t flag = latest_nsec/1000000000;
+      if(flag > 0){
+        latest_sec = time_pps_.sec + 1;
+        latest_nsec = latest_nsec % 1000000000;
+      }
+      else{
+        latest_sec = time_pps_.sec ;
+        latest_nsec = latest_nsec % 1000000000;
+      }
+
+      time_pps_ = ros::Time(latest_sec, latest_nsec);
+
+      time_last_ = time_curr_;
+    }
+
+    // //// get time duration after UTC clock is set 
+    // uint32_t time_aft_utc, latest_sec;
+    // time_aft_utc = time_ - start_time_;
+    // //// get second part
+    // if(utc_clock_) 
+    //   latest_sec = curr_time_base_ + time_aft_utc / 1000000;
+    // else
+    //   latest_sec = TIME_BASE + time_aft_utc / 1000000;
+    // //// get microssecond part
+    // //micro_offset_ = time_aft_utc % 1000000;   
 
     //// encode time format
-    encodeTimeROS(latest_sec);
-    encodeTimeGPS(latest_sec);
+    encodeTimeROS(time_pps_.sec);
+    encodeTimeGPS(time_pps_.sec);
 
     //// publish time 
     publishTimeROS();

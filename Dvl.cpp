@@ -7,7 +7,8 @@ Dvl::Dvl(ros::NodeHandle *nh, const String &topic, const uint8_t trigger_pin)
     curr_time_base_(0), utc_clock_(false), start_time_(0),
     topic_time_(topic+"time"), publisher_time_(topic_time_.c_str(), &msg_time_),
     topic_info_(topic+"info"), publisher_info_(topic_info_.c_str(), &msg_info_),
-    subscriber_init_((topic + "init").c_str(), &Dvl::initCallback, this)
+    subscriber_init_((topic + "init").c_str(), &Dvl::initCallback, this),
+    time_curr_(0), time_last_(0), time_dvl_(ros::Time(TIME_BASE,0))
 {
   publisher_time_  = ros::Publisher("/rov/synchronizer/dvl/time", &msg_time_);
   publisher_info_  = ros::Publisher("/rov/synchronizer/dvl/info", &msg_info_);
@@ -29,13 +30,13 @@ void Dvl::initialize() {
   while (TCC1->SYNCBUSY.bit.WAVE);               // Wait for synchronization
   
 
-  TCC1->PER.reg = 46874;                        // Set the TCC1 PER register to generate a 1 second period  
+  TCC1->PER.reg = 46874;                         // Set the TCC1 PER register to generate a 1 second period  
   while (TCC1->SYNCBUSY.bit.PER);                // Wait for synchronization
-  TCC1->CC[1].reg = 94;                         // Set the TCC1 CC1 register to generate high voltage within 0.002 second (0.2%)
+  TCC1->CC[1].reg = 94;                          // Set the TCC1 CC1 register to generate high voltage within 0.002 second (0.2%)
   while (TCC1->SYNCBUSY.bit.CC1);                // Wait for synchronization
 
-  // NVIC_SetPriority(TCC1_IRQn, 0);                // Set the Nested Vector Interrupt Controller (NVIC) priority for TCC1 to 0 (highest)
-  // NVIC_EnableIRQ(TCC1_IRQn);                     // Connect TCC1 to Nested Vector Interrupt Controller (NVIC)
+  // NVIC_SetPriority(TCC1_IRQn, 0);             // Set the Nested Vector Interrupt Controller (NVIC) priority for TCC1 to 0 (highest)
+  // NVIC_EnableIRQ(TCC1_IRQn);                  // Connect TCC1 to Nested Vector Interrupt Controller (NVIC)
 
   TCC1->INTENSET.reg = TCC_INTENSET_OVF;         // Enable TCC1 overflow (OVF) interrupts
  
@@ -47,12 +48,10 @@ void Dvl::initialize() {
 }
 
 void Dvl::initCallback(const std_msgs::Bool &msg) {
-  // two cameras (stereo) found synchronization offsets
   if (msg.data)
     initialized_sensors_++;
 
   if (initialized_sensors_== 1){
-
     initialized_ = true;
     begin();
   }
@@ -66,9 +65,9 @@ void Dvl::begin() {
   while (TCC1->SYNCBUSY.bit.WAVE);               // Wait for synchronization
 
   //// set to desired trigger Hz(8)
-  TCC1->PER.reg = 5859;                      // Set the TCC1 PER register to generate a 0.125 second period (12.5%)     
+  TCC1->PER.reg = 5859;                          // Set the TCC1 PER register to generate a 0.125 second period (12.5%)     
   while (TCC1->SYNCBUSY.bit.PER);                
-  TCC1->CC[1].reg = 94;                      // Set the TCC1 CC1 register to generate high voltage within 0.002 second (0.2%)    
+  TCC1->CC[1].reg = 94;                          // Set the TCC1 CC1 register to generate high voltage within 0.002 second (0.2%)    
   while (TCC1->SYNCBUSY.bit.CC1);   
 
   TCC1->INTENSET.reg = TCC_INTENSET_OVF;         // Enable TCC1 overflow (OVF) interrupts
@@ -94,7 +93,8 @@ void Dvl::setTimeNow() {
   {   
     TCC1->INTFLAG.bit.OVF = 1;                              // Clear the overflow (OVF) interrupt flag
 
-    time_ = micros();
+    // time_ = micros();
+    time_curr_ = micros();
 
     msg_number_++;
 
@@ -110,19 +110,56 @@ void Dvl::publish() {
 
   if(isAvailable()) {
 
-    //// get time duration after UTC clock is set 
-    uint32_t time_aft_utc, latest_sec, latest_micro;
-    time_aft_utc = time_ - start_time_;
-    //// get second part
-    if(utc_clock_) 
-      latest_sec = curr_time_base_ + time_aft_utc / 1000000;
-    else
-      latest_sec = TIME_BASE + time_aft_utc / 1000000;
-    //// get microssecond part
-    latest_micro = time_aft_utc % 1000000;   
+    // //// get time duration after UTC clock is set 
+    // uint32_t time_aft_utc, latest_sec, latest_micro;
+    // time_aft_utc = time_ - start_time_;
+    // //// get second part
+    // if(utc_clock_) 
+    //   latest_sec = curr_time_base_ + time_aft_utc / 1000000;
+    // else
+    //   latest_sec = TIME_BASE + time_aft_utc / 1000000;
+    // //// get microssecond part
+    // latest_micro = time_aft_utc % 1000000;   
 
-    //// encode time format
-    encodeTimeROS(latest_sec, latest_micro);
+    // //// encode time format
+    // encodeTimeROS(latest_sec, latest_micro);
+
+    // get ready of cam ros time from :
+    //    UTC time base 
+    //    time duration from UTC arrived Arduino to current camera trigger
+    if(utc_clock_) {
+      uint32_t time_aft_utc = time_curr_ - start_time_;
+      uint32_t latest_sec = curr_time_base_ + time_aft_utc / 1000000;
+      uint32_t latest_micro = time_aft_utc % 1000000;
+      time_dvl_ = ros::Time(latest_sec, latest_micro*1000);
+
+      time_last_ = time_curr_;
+      utc_clock_ = false;
+    }
+    else {
+      uint32_t time_aft_tigger, latest_sec, latest_nsec;
+
+      time_aft_tigger = time_curr_ - time_last_;
+      latest_nsec = time_dvl_.nsec + time_aft_tigger * 1000;
+
+      uint8_t flag = latest_nsec/1000000000;
+      if(flag > 0){
+        latest_sec = time_dvl_.sec + 1;
+        latest_nsec = latest_nsec % 1000000000;
+      }
+      else{
+        latest_sec = time_dvl_.sec ;
+        latest_nsec = latest_nsec % 1000000000;
+      }
+
+      time_dvl_ = ros::Time(latest_sec, latest_nsec);
+
+      time_last_ = time_curr_;
+    }
+
+    ////
+    encodeTimeROS();
+
 
     //// publish time 
     publishTimeROS();
@@ -132,9 +169,9 @@ void Dvl::publish() {
   }
 }
 
-void Dvl::encodeTimeROS(uint32_t curr_sec, uint32_t curr_micro) {
+void Dvl::encodeTimeROS() {
 
-  msg_time_.time = ros::Time(curr_sec, curr_micro*1000);
+  msg_time_.time = time_dvl_;
   msg_time_.number = msg_number_;
 
 }

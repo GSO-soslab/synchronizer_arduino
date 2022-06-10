@@ -23,7 +23,7 @@
 //// Science system
 #include "Science.h"
 //// Battery
-#include "Battery.h"
+// #include "Battery.h"
 //// Dvl
 #include "Dvl.h"
 
@@ -76,7 +76,7 @@ Pps pps(&nh, PPS_TOPIC, PPS_TRIGGER_PIN, &Serial2);
 //// Instantiate Science object
 // Science sci(&nh, SCIENCE_TOPIC, &Serial1); 
 //// Instantiate Battery object
-Battery battery(&nh, BATTERY_TOPIC);
+// Battery battery(&nh, BATTERY_TOPIC);
 //// Instantiate LED object
 Servo led;
 //// Instantiate Servo object
@@ -175,7 +175,7 @@ void loop() {
   pps.publish();
 
   //// Handle battery info publishing
-  battery.measurement();
+  // battery.measurement();
 
   //// communication with sciecen system
   // sci.communicate();
@@ -318,6 +318,9 @@ void clockCallback(const std_msgs::UInt32 &msg) {
     pps.begin();
 
     //// record arduino clock received UTC clock
+    
+    // uint32_t start_millis = millis();
+
     uint32_t start_time = micros();
     bool utc_clock = true;
     uint32_t curr_time_base = msg.data;

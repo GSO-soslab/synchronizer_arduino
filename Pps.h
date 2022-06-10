@@ -67,6 +67,10 @@ private:
   volatile uint32_t start_time_;
   volatile uint32_t curr_time_base_;
 
+  ros::Time time_pps_;
+  volatile uint32_t time_curr_;
+  volatile uint32_t time_last_;
+
   // pps time used in microstrain ahrs for tims sync
   volatile bool available_;
 };

@@ -24,7 +24,7 @@ public:
   
   bool isAvailable() { return available_; };
 
-  void encodeTimeROS(uint32_t curr_sec, uint32_t curr_micro);
+  void encodeTimeROS();
 
   void publishTimeROS();
 
@@ -65,6 +65,11 @@ private:
   volatile bool utc_clock_;
   volatile uint32_t start_time_;
   volatile uint32_t curr_time_base_;
+
+  ros::Time time_dvl_;
+  volatile uint32_t time_curr_;
+  volatile uint32_t time_last_;
+
 };
 
 #endif  // DVL_H_
